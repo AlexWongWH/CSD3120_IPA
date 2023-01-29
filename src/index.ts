@@ -18,7 +18,9 @@ const engine = new Engine(canvas,true);
 const app = new App(engine, canvas)
 
 
-const scenePromise = app.createScene();
+// const scenePromise = app.createScene();
+const scenePromise = app.createXRScene(canvas,true);
+
 
 //since it's a promise, it doesn't return the scene object
 
