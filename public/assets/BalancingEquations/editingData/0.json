@@ -1,0 +1,22 @@
+{
+  "steps": [
+    {
+      "startTime": 0,
+      "endTime": 84.99159999999256
+    }
+  ],
+  "annotations": [
+    {
+      "text": "Balancing Equations",
+      "x": -0.2474283508661701,
+      "y": 0.5077046964480307,
+      "startTime": "01",
+      "endTime": 84,
+      "isAttached": false,
+      "anchor": {
+        "id": 3
+      },
+      "object": null
+    }
+  ]
+}

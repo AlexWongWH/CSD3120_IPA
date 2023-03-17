@@ -20,8 +20,7 @@ module.exports = {
     mode: "development",
     devtool: "inline-source-map", //map between the source map and ts script for dev tool
     devServer:{
-        static: false,
-        port: 3000,
+        port: 9000,
     },
     plugins: [
         new HtmlWebPackPlugin({
