@@ -34,23 +34,25 @@ export class HelloSphere extends AbstractMesh implements HelloMesh{
         this.addChild(this.label.mesh);
         
 
-        this.initActions();
+        this.initActions(); // action manger not found
     }
 
     sayHello(message?: string): void{
         console.log("message from hello sphere: " + message);
     }
+
     private initActions(){
         const actionManager = this.actionManager = new ActionManager(this.scene);
         actionManager.isRecursive = true;
 
         const light = this.scene.getLightById("default light");
 
+        //add action where on picked diffuse to color to black
         actionManager.registerAction(
             new InterpolateValueAction(
                 ActionManager.OnPickTrigger,
                 light,
-                "diffuse",
+                "diffuse", // property
                 Color3.Black(),
                 1000
             )
@@ -79,10 +81,11 @@ export class HelloSphere extends AbstractMesh implements HelloMesh{
         );
 
         const otherMesh = this.scene.getMeshById("sphere");
+        
         actionManager.registerAction(
-            new SetValueAction(
+            new SetValueAction( //new action 
                 {
-                    trigger: ActionManager.OnIntersectionEnterTrigger,
+                    trigger: ActionManager.OnIntersectionEnterTrigger, // intersecting against another mesh
                     parameter:{
                         mesh:otherMesh,
                         usePreciseIntersection:true,
