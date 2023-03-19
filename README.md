@@ -3,9 +3,11 @@ Author: Wong Wei Hao 2002316
 Project: CSD3120_IPA
 IPA assignment for CSD3120
 
+
 ##About the project
 This innovative project harnesses the power of Babylon.js, a cutting-edge 3D graphics engine, and Webpack, a powerful build tool, to create an immersive virtual reality (VR) experience designed to transport student into a classroom environment. This VR experience has been optimized for the Google Cardboard platform, ensuring maximum compatibility and accessibility. 
 The goal of this experience is to provide a unique and engaging way for users to learn the fundamental principles of chemistry, specifically the concept of balancing chemical equations.
+Students are able to test it out the combination of molecues by draging hydrogen molecules to the oxygen molecule to form water
 
 ## Architecture
 Root
@@ -15,7 +17,7 @@ Root
 |
 |`src` folder contains manually-written code that handles the implementation for this project.
 | |
-| |-`components` folder cotains files used for the vr scene
+| |-`components` folder contains files used for the vr scene
 | |		|-`env` folder contains .ts files which are code used to construct the VR environment
 | | 	|
 | | 	|-`meshes` folder contains .ts files which are code used to meshes/basic shapes
@@ -43,7 +45,7 @@ Root
 |-`webpack.config.js` configuration file for the webpack.
 
 ## Setup for dependecies and starting up
-Make sure to do these commands **in order** on your powershell CLI in the root directory of this project folder:
+Make sure to do these commands *in order* on your powershell CLI in the root directory of this project folder:
 
 Install npm by `npm install -g npm`
 
@@ -57,7 +59,11 @@ Install babylonjs GUI by `npm install --save babylonjs-gui`
 
 Install xrauthor-loader by `npm i xrauthor-loader -D`
 
-Inside the package.json file, add this code snippet into the "scripts` section:
+Install copy-webpack-plugin by `npm i copy-webpack-plugin -D`
+
+To use the following commands:
+
+Inside package.json file, add this code snippet into the "scripts` section:
 
    "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -73,7 +79,8 @@ Type `npm run serve` to start running the server that hosts the web app, which c
 
 Type `npm run build-ext` generate and index.ts to upload to xrauthor 
 
-Press Ctrl+C twice to stop the server once you are done using it.
+
+Press Ctrl+C twice at the CLI termial to stop the server.
 
 ## Video link
 `assets/Reaction to form chemical/videos/0.webm`

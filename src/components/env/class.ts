@@ -4,22 +4,15 @@
  * @package
  */
 
-import {
-    Scene,
-    SceneLoader,
-    Vector3,
-    PointerDragBehavior,
-    Animation,
-    StandardMaterial,
-    Color3,
-    MeshBuilder,
-    Texture
-  } from "babylonjs";
+import {Scene,SceneLoader,Vector3,PointerDragBehavior,StandardMaterial,Color3,MeshBuilder,Texture } from "babylonjs";
   
 
-  
+  /**
+   * Function to create the environment of the class room, ie, walls and ceiling
+   * 
+   * @param scene the scene where to load the class room model
+   */
   export function loadModels(scene: Scene) {
-
     
     //left wall
     const wallHeight = 3;
@@ -34,6 +27,15 @@ import {
     wallMaterial.diffuseColor = wallColor;
     wallMaterial.specularColor = Color3.Black();
 
+    const ceilingMaterial = new StandardMaterial("wallMaterial", scene);
+    ceilingMaterial.backFaceCulling = true;
+    ceilingMaterial.diffuseTexture = new Texture(
+      "assets/textures/whitewall.png",
+      scene
+    );
+    ceilingMaterial.diffuseColor = wallColor;
+    ceilingMaterial.specularColor = Color3.Black();
+
     const leftWall = MeshBuilder.CreateBox("leftWall", { width: wallThickness, height: wallHeight, depth: 10 });
     leftWall.position.x = -48.5;
     leftWall.scaling = new Vector3(30,30,30);
@@ -47,7 +49,6 @@ import {
     rightWall.position.y = wallHeight;
     rightWall.material = wallMaterial;
 
-
     //front wall
     const frontWall = MeshBuilder.CreateBox("frontWall", { width: wallThickness, height: wallHeight, depth: 10 });
     frontWall.position.z = 48.5;
@@ -55,7 +56,6 @@ import {
     frontWall.scaling = new Vector3(30,30,30);
     frontWall.position.y = wallHeight;
     frontWall.material = wallMaterial;
-
 
     //back wall
     const backWall = MeshBuilder.CreateBox("backWall", { width: wallThickness, height: wallHeight, depth: 10 });
@@ -65,6 +65,12 @@ import {
     backWall.position.y = wallHeight;
     backWall.material = wallMaterial;
 
+    //ceiling
+    const ceiling = MeshBuilder.CreateBox("ceiling", { width: wallThickness, height: wallHeight, depth: 10 });
+    ceiling.position.y = 56.5;
+    ceiling.rotation = new Vector3(0,0,-Math.PI/2);
+    ceiling.scaling = new Vector3(50,50,40);
+    ceiling.material = ceilingMaterial;
 
     //chalk board
     SceneLoader.ImportMeshAsync(
