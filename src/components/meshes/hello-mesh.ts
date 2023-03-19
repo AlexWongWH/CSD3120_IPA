@@ -1,6 +1,72 @@
 // using interface to extend babylon js 
 import { AbstractMesh, ActionManager, Color3, Observable, ExecuteCodeAction, InterpolateValueAction, Mesh, MeshBuilder, PredicateCondition, Scene, SetValueAction, StandardMaterial, Vector3 } from "babylonjs";
 import { TextPlane } from "./text-plane";
+import { DynamicTexture, Quaternion, Vector4 } from "babylonjs";
+
+import {
+    SceneLoader,
+    PointerDragBehavior,
+    WebXRDefaultExperience,
+    WebXRControllerPointerSelection,
+  } from "babylonjs";
+
+
+export function createBoxWithNumber(scene: Scene, position: Vector3, rotation : Vector3,
+    boxColor: Color3 = Color3.White(),
+    textColor: string = "black")
+: AbstractMesh {
+// Create a material to apply the texture to the box
+const material = new StandardMaterial("texturedMaterial", scene);
+
+// Create a dynamic texture with the desired size (in pixels)
+const textureSize = 128;
+const texture = new DynamicTexture(
+  "dynamicTexture",
+  { width: textureSize, height: textureSize },
+  scene,
+  false
+);
+
+// Create a 2D drawing context for the texture and cast it to the standard CanvasRenderingContext2D
+const ctx = texture.getContext() as CanvasRenderingContext2D;
+
+// Clear the texture with a transparent background
+ctx.clearRect(0, 0, textureSize, textureSize);
+
+// Draw the number "2" on the texture
+ctx.fillStyle = boxColor.toHexString();
+ctx.fillRect(0, 0, 256, 256);
+ctx.font = "60px Arial";
+ctx.fillStyle = textColor;
+ctx.textAlign = "center";
+ctx.textBaseline = "middle";
+ctx.fillText("2", textureSize / 2, textureSize / 2);
+
+// Update the texture
+texture.update();
+
+// Apply the texture to the material
+material.diffuseTexture = texture;
+material.emissiveColor = new Color3(0, 1, 0);
+
+// Create the box and apply the material only to the front face (positive Z direction)
+const faceUV = [
+  new Vector4(0, 0, 0, 0), // Ignore all other sides
+  new Vector4(0, 0, 0, 0),
+  new Vector4(0, 0, 0, 0),
+  new Vector4(0, 0, 0, 0),
+  new Vector4(0, 0, 0, 0),
+  new Vector4(0, 0, 1, 1), // Apply texture to front face
+];
+
+const box = MeshBuilder.CreateBox("box", { size: 1, faceUV: faceUV }, scene);
+box.material = material;
+
+box.position = position;
+box.rotation = rotation;
+return box;
+
+  }
 
 export interface HelloMesh{
     scene: Scene;

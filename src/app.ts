@@ -16,10 +16,14 @@ import {
   Vector3,
   Matrix,
   UniversalCamera,
+  EasingFunction,
+  ExponentialEase,
   VideoDome,
   Sound,
   HemisphericLight,
   AnimationGroup,
+  BoundingBox,
+  IntersectionInfo,
   PointLight,
   SceneLoader,
   Animation,
@@ -44,12 +48,16 @@ import {
   Gizmo,
   GizmoManager,
   Nullable,
+  WebXRExperienceHelper,
+  WebXRDefaultExperience,
 } from "babylonjs";
-import { AdvancedDynamicTexture, TextBlock } from "babylonjs-gui";
+import { AdvancedDynamicTexture, Control, StackPanel, TextBlock } from "babylonjs-gui";
 import "babylonjs-loaders";
 import { AuthoringData } from "xrauthor-loader";
-import { WebXRDefaultExperience } from "babylonjs/XR/webXRDefaultExperience";
-import { HelloSphere, TextPlane } from "./components/meshes";
+import { HelloSphere, TextPlane, Ground } from "./components/meshes";
+import { createLights } from "./components/env/lighting";
+import { loadModels  } from "./components/env/class";
+import { createBoxWithNumber  } from "./components/meshes/hello-mesh";
 
 /**
  * App class for creating and managing the XR scene.
@@ -79,23 +87,6 @@ export class App {
     this.canvas = canvas;
     this.data = data;
     console.log("app object constructor called");
-  }
-
-  createLights(scene: Scene) {
-    const hemiLight = new HemisphericLight(
-      "hemLight",
-      new Vector3(-1, 1, 0),
-      scene
-    );
-    hemiLight.intensity = 0.5;
-    hemiLight.diffuse = new Color3(0, 0, 0);
-
-    const pointLight = new PointLight(
-      "pointLight",
-      new Vector3(-1 - 1.0),
-      scene
-    );
-    pointLight.intensity = 1.1;
   }
 
   createVideoSkyDome(scene: Scene) {
@@ -180,91 +171,52 @@ export class App {
 
   loadModels(scene: Scene) 
   {
-    // H2O
-    SceneLoader.ImportMeshAsync("", "assets/models/", "H2O.glb", scene).then(
-      (result) => {
-        const root = result.meshes[0];
-        root.id = "h2oRoot";
-        root.name = "h2oRoot";
-        root.position.y = -1;
-        root.rotation = new Vector3(0, 0, Math.PI);
-        root.scaling.setAll(1.5);
-        this.createAnimation(scene, root); // create animation to make it spin
-      }
-    );
+    // // H2O
+    // SceneLoader.ImportMeshAsync("", "assets/models/", "H2O.glb", scene).then(
+    //   (result) => {
+    //     const root = result.meshes[0];
+    //     root.id = "h2oRoot";
+    //     root.name = "h2oRoot";
+    //     root.position.y = -1;
+    //     root.rotation = new Vector3(0, 0, Math.PI);
+    //     root.scaling.setAll(1.5);
+    //     this.createAnimation(scene, root); // create animation to make it spin
+    //   }
+    // );
 
-
-
-    // chairs
-    SceneLoader.ImportMeshAsync(
-      "",
-      "assets/models/scene/",
-      "chair.glb",
-      scene
-    ).then((result) => {
-      const root = result.meshes[0];
-      root.id = "chair";
-      root.name = "chair";
-      root.position.y = -12;
-      root.position.z = 5;
-      root.rotation = new Vector3(0, -Math.PI / 2, 0);
-      root.scaling.setAll(20.0);
-    });
-
-    // table
-    SceneLoader.ImportMeshAsync(
-      "",
-      "assets/models/scene/",
-      "table.glb",
-      scene
-    ).then((result) => {
-      const root = result.meshes[0];
-      root.id = "table";
-      root.name = "table";
-      root.position.y = -12;
-      root.position.z = 5;
-      root.position.x = 3;
-      root.rotation = new Vector3(0, 0, 0);
-      root.scaling.setAll(30.0);
-    });
-
-    // clock
-    SceneLoader.ImportMeshAsync(
-      "",
-      "assets/models/scene/",
-      "clock.glb",
-      scene
-    ).then((result) => {
-      const root = result.meshes[0];
-      root.id = "clock";
-      root.name = "clock";
-      root.position.y = 14;
-      root.position.z = 30;
-      root.rotation = new Vector3(0, Math.PI, 0);
-      root.scaling.setAll(10.0);
-    });
-
-    // bin
-    SceneLoader.ImportMeshAsync(
-      "",
-      "assets/models/scene/",
-      "bin.glb",
-      scene
-    ).then((result) => {
-      const root = result.meshes[0];
-      root.id = "bin";
-      root.name = "bin";
-      root.position.y = -10;
-      root.position.z = 14;
-      root.position.x = 9;
-      root.rotation = new Vector3(0, 0, 0);
-      root.scaling.setAll(10.0);
-    });
-
-
+  
 
 
   }
+
+
+  applyColor = (mesh: AbstractMesh, color: Color3) => {
+    const material = new StandardMaterial("modelMaterial", mesh.getScene());
+    material.diffuseColor = color;
+    mesh.material = material;
+  };
+
+  createShakeAnimation = (mesh: AbstractMesh) => {
+    const animation = new Animation("shake", "position", 30, Animation.ANIMATIONTYPE_VECTOR3, Animation.ANIMATIONLOOPMODE_CYCLE);
+    const easingFunction = new ExponentialEase(3);
+    easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
+  
+    const keyFrames = [
+      { frame: 0, value: mesh.position },
+      { frame: 5, value: mesh.position.add(new Vector3(0.1, 0, 0)) },
+      { frame: 10, value: mesh.position.add(new Vector3(-0.1, 0, 0)) },
+      { frame: 15, value: mesh.position.add(new Vector3(0.1, 0, 0)) },
+      { frame: 20, value: mesh.position.add(new Vector3(-0.1, 0, 0)) },
+      { frame: 25, value: mesh.position.add(new Vector3(0.1, 0, 0)) },
+      { frame: 30, value: mesh.position },
+    ];
+  
+    animation.setKeys(keyFrames);
+    animation.setEasingFunction(easingFunction);
+  
+    return animation;
+  };
+
 
   addInspectorKeyboardShortcut(scene: Scene) {
     window.addEventListener("keydown", (e) => {
@@ -275,6 +227,12 @@ export class App {
           scene.debugLayer.show();
         }
       }
+
+      if (e.key === "r" || e.key === "R") {
+        // resetscene();
+      }
+
+
     });
   }
 
@@ -310,9 +268,6 @@ export class App {
     //   new Vector3(0, 0, -5),
     //   scene
     // );
-
-    // input
-
     camera.attachControl(this.canvas, true);
   }
 
@@ -332,54 +287,244 @@ export class App {
     skybox.material = skyboxMaterial;
   }
 
+  createVideoPlane(scene: Scene, sphere: AbstractMesh) {
+    const videoHeight = 5;
+    const videoWidth = videoHeight * this.data.recordingData.aspectRatio;
+    const videoPlane = MeshBuilder.CreatePlane(
+      "video plane",
+      {
+        height: videoHeight,
+        width: videoWidth,
+      },
+      scene
+    );
+    videoPlane.position.set(0, -3, 8);
+    videoPlane.rotation.set(Math.PI / 2, 0, 0);
+    videoPlane.scaling._x = 1.0;
+    videoPlane.scaling._y = 1.0;
+    const videoMaterial = new StandardMaterial("video material", scene);
+    const videoTexture = new VideoTexture(
+      "video texture",
+      this.data.video,
+      scene
+    );
+    videoTexture.onUserActionRequestedObservable.add(() => {});
+    videoTexture.video.autoplay = true;
+    videoMaterial.diffuseTexture = videoTexture;
+    videoMaterial.roughness = 1;
+    videoMaterial.emissiveColor = Color3.White();
+    videoPlane.material = videoMaterial;
+
+    scene.onPointerObservable.add((evtData) => {
+      console.log("picked");
+      if (evtData.pickInfo?.pickedMesh === videoPlane) {
+        if (videoTexture.video.paused) {
+          videoTexture.video.play();
+          animationGroup.play(true);
+        } else {
+          videoTexture.video.pause();
+          animationGroup.pause();
+        }
+        console.log(videoTexture.video.paused ? "paused" : "playing");
+      }
+    }, PointerEventTypes.POINTERPICK);
+
+    const id = "m10";
+    const track = this.data.recordingData.animation.tracks[id];
+    const length = track.times.length;
+    const fps = length / this.data.recordingData.animation.duration;
+    // interface of the keyframes
+    interface KeyFrame {
+      frame: number;
+      value: Vector3;
+    }
+
+    const keyFrames: KeyFrame[] = [];
+
+    for (let i = 0; i < length; i++) {
+      const mat = Matrix.FromArray(track.matrices[i].elements);
+      const pos = mat.getTranslation();
+      // convert position from right handed to left handed coords
+      pos.z = -pos.z;
+      const s = 10 / pos.z;
+      keyFrames.push({
+        frame: track.times[i] * fps,
+        value: pos.scale(s).multiplyByFloats(1.2, 3.5, 0.7),
+      });
+    }
+
+
+    const h20model = SceneLoader.ImportMeshAsync(
+      "",
+      "assets/models/scene/",
+      "h2o.glb",
+      scene
+    )
+    const animation = new Animation(
+      "animation",
+      "position",
+      fps,
+      Animation.ANIMATIONTYPE_VECTOR3,
+      Animation.ANIMATIONLOOPMODE_CYCLE
+    );
+    animation.setKeys(keyFrames);
+    sphere.animations = [animation];
+    scene.beginAnimation(sphere,0,length-1,true);
+
+    const animationGroup = new AnimationGroup("animation group", scene);
+    animationGroup.addTargetedAnimation(animation,sphere);
+
+    const info = this.data.recordingData.modelInfo[id];
+    const label = info.label;
+    const name = info.name;
+    const url = this.data.models[name];
+    SceneLoader.AppendAsync(url, undefined, scene, undefined, ".glb").then(
+      (result) => {
+        const root = result.getMeshById("__root__");
+        if (root) {
+          root.id = id + ": " + label;
+          root.name = label; // label in this case in H2
+          // showing the label on the text
+          // helloplane.position.setAll(0);
+          // helloPlane.position.y = -0.5;
+          // helloPlane.position.z = -0.1;
+          // helloPlane.setParent(root);
+          // helloText.test = label;
+          animationGroup.addTargetedAnimation(animation, root);
+          animationGroup.reset();
+        }
+      }
+    );
+  }
+
+  attachDragBehavior(mesh, onDragEnd) {
+    const dragBehavior = new PointerDragBehavior({ dragPlaneNormal: new Vector3(0, 1, 0) });
+    mesh.addBehavior(dragBehavior);
+    dragBehavior.onDragEndObservable.add(onDragEnd);
+  }
+
   async createScene() {
     console.log(this.data);
 
     const scene = new Scene(this.engine);
     scene.createDefaultCameraOrLight(false, true, true);
-
     scene.actionManager = new ActionManager(scene);
 
     this.createCamera(scene);
-    // const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.5, 3, new BABYLON.Vector3(0, 0, 0));
-    // camera.attachControl(this.canvas, true);
-    this.createLights(scene);
-
+    createLights(scene);
     this.loadModels(scene);
+    loadModels(scene); // "static" class models
     this.addSounds(scene);
-    this.createParticles(scene);
-
+    // this.createParticles(scene);
     this.createText(scene); // create text
 
-    const groundMaterial = new StandardMaterial("ground material", scene);
-    groundMaterial.backFaceCulling = true;
-    groundMaterial.diffuseTexture = new Texture(
-      "assets/textures/grass.png",
-      scene
-    );
 
-    const ground = MeshBuilder.CreateGround(
-      "ground",
-      { width: 12, height: 12 },
-      scene
-    );
-    ground.material = groundMaterial;
+    const boxm10 = createBoxWithNumber(scene,new Vector3(1,1,1), new Vector3(3.14,0,0));
 
-    ground.position.set(0, -1, 8);
-    // ground.position.y = -2;
 
+    const combineThreshold = 1.5; // Distance threshold for combining the models
+
+    const O2Model = await SceneLoader.ImportMeshAsync("", "assets/models/", "O2.glb", scene);
+    const o2Root = O2Model.meshes[0];
+    o2Root.position = new Vector3(0, 1, 1);
+    
+    const HModel = await SceneLoader.ImportMeshAsync("", "assets/models/", "H2.glb", scene);
+    const hRoot = HModel.meshes[0];
+    hRoot.position = new Vector3(2, 1, 1);
+    
+    const H2OModel = await SceneLoader.ImportMeshAsync("", "assets/models/", "H2o.glb", scene);
+    const h2oRoot = H2OModel.meshes[0];
+    h2oRoot.position = new Vector3(1.5, 1, 1);
+    h2oRoot.setEnabled(false); // Hide H2OModel initially
+    
+
+
+    const createDragBehavior = () => {
+      const dragBehavior = new PointerDragBehavior({
+        dragPlaneNormal: new Vector3(0, 1, 0),
+      });
+    
+
+      dragBehavior.onDragObservable.add(() => {
+        const distance = Vector3.Distance(o2Root.position, hRoot.position);
+    
+        if (distance <= combineThreshold) {
+          this.applyColor(o2Root, Color3.Red());
+          this.applyColor(hRoot, Color3.Red());
+    
+          const shakeAnimO2 = this.createShakeAnimation(o2Root);
+          const shakeAnimH = this.createShakeAnimation(hRoot);
+    
+          o2Root.getScene().beginDirectAnimation(o2Root, [shakeAnimO2], 0, 30, false, 1, () => {
+            this.applyColor(o2Root, Color3.White());
+          });
+          o2Root.getScene().beginDirectAnimation(hRoot, [shakeAnimH], 0, 30, false, 1, () => {
+            this.applyColor(hRoot, Color3.White());
+          });
+        } else {
+          this.applyColor(o2Root, Color3.White());
+          this.applyColor(hRoot, Color3.White());
+        }
+      });
+    
+      dragBehavior.onDragEndObservable.add(() => {
+        const distance = Vector3.Distance(o2Root.position, hRoot.position);
+    
+        if (distance <= combineThreshold) {
+          o2Root.setEnabled(false);
+          hRoot.setEnabled(false);
+          h2oRoot.setEnabled(true);
+        }
+      });
+
+      return dragBehavior;
+    };
+    
+    o2Root.addBehavior(createDragBehavior());
+    hRoot.addBehavior(createDragBehavior());
+
+
+
+    const box = MeshBuilder.CreateBox("box", { size: 1 }, scene);
+    const texture = AdvancedDynamicTexture.CreateForMesh(box);
+    
+
+    const boxTexture = AdvancedDynamicTexture.CreateForMesh(box);
+    const boxText = new TextBlock();
+    boxText.text = "2";
+    boxText.color = "white";
+    boxText.fontSize = 100;
+    boxTexture.addControl(boxText);
+
+    const material = new StandardMaterial("material", scene);
+    material.diffuseTexture = texture;
+    material.diffuseColor = new Color3(1, 0, 0); // set the material color to red
+    material.alpha = 1; // set the material alpha to 1
+
+    box.material = material; // assign the material to the mesh
+    box.position = new Vector3(0, 0, 5); // position the mesh in front of the camera
 
     const sphere = MeshBuilder.CreateBox("sphere", { size: 1 }, scene);
     sphere.position.x = 0;
     sphere.position.y = 1;
     sphere.position.z = 5;
 
+
+    // const h20model = SceneLoader.ImportMeshAsync(
+    //   "",
+    //   "assets/models/scene/",
+    //   "h2o.glb",
+    //   scene
+    // )
+
+    const groundInstance = new Ground(scene); // create ground
+
     //  this.createSkyBox(scene);
     this.createVideoSkyDome(scene);
     this.addInspectorKeyboardShortcut(scene); // ctrl + i to use
 
     const helloSphere = new HelloSphere("hello sphere", { diameter: 1 }, scene);
-    helloSphere.position.set(0, 1, -5);
+    helloSphere.position.set(0, 1, 5);
     helloSphere.sayHello("this is a test.");
 
     // interactions
@@ -400,124 +545,36 @@ export class App {
 
     helloSphere.addBehavior(helloSphereDragBehavior);
 
+    sphere.addBehavior(pointerDragBehavior); // that behavoir to the sphere
 
     // multiple pointer scale
     const multiPointerScaleBehavior = new MultiPointerScaleBehavior();
     helloSphere.addBehavior(multiPointerScaleBehavior);
+    
+    // create the video plane
+    this.createVideoPlane(scene, boxm10);
 
 
+    
+    // // more behaviors 
+    // // default gizmo 
+    // const gizmoManager = new GizmoManager(scene);
+    // gizmoManager.positionGizmoEnabled = true;
+    // gizmoManager.rotationGizmoEnabled = true;
+    // gizmoManager.scaleGizmoEnabled = true;
+    // gizmoManager.boundingBoxGizmoEnabled = true;
 
-    // more behaviors 
-    // default gizmo 
-    const gizmoManager = new GizmoManager(scene);
-    gizmoManager.positionGizmoEnabled = true;
-    gizmoManager.rotationGizmoEnabled = true;
-    gizmoManager.scaleGizmoEnabled = true;
-    gizmoManager.boundingBoxGizmoEnabled = true;
-
-
-    sphere.addBehavior(pointerDragBehavior); // that behavoir to the sphere
-
-
-    const helloPlane = MeshBuilder.CreatePlane("Hello plane", { size: 15 });
-    helloPlane.position.y = 0;
-    helloPlane.position.z = 5;
-    //the 3d quad for words
-    const helloTexture = AdvancedDynamicTexture.CreateForMesh(helloPlane);
-
-    const helloText = new TextBlock("hello");
-    helloText.text = "Hello XR";
-    helloText.color = "purple";
-    helloText.fontSize = 50;
-    helloTexture.addControl(helloText); //what to use for the texture
-
-    const videoHeight = 5;
-    const videoWidth = videoHeight * this.data.recordingData.aspectRatio;
-
-    const videoPlane = MeshBuilder.CreatePlane(
-      "video plane",
-      {
-        height: videoHeight,
-        width: videoWidth,
-      },
-      scene
-    );
-
-    videoPlane.position.z = 8;
-    const videoMaterial = new StandardMaterial("video material", scene);
-
-    const videoTexture = new VideoTexture(
-      "video texture",
-      this.data.video,
-      scene
-    );
-
-    videoTexture.video.autoplay = false;
-    videoTexture.onUserActionRequestedObservable.add(() => {});
-
-    videoMaterial.diffuseTexture = videoTexture;
-    videoMaterial.roughness = 1;
-    videoMaterial.emissiveColor = Color3.White();
-    videoPlane.material = videoMaterial;
-
-    // scene observable
-    scene.onPointerObservable.add((evtData) => {
-      console.log("picked");
-
-      //mesh picked is video plane
-      if (evtData.pickInfo.pickedMesh === videoPlane) {
-        // this.buttonSound.play(); // play sounds
-        console.log("picked on video plane");
-        if (videoTexture.video.paused) {
-          videoTexture.video.play();
-          animationGroup.play(true);
-        } else {
-          videoTexture.video.pause();
-          animationGroup.pause();
-        }
-        console.log(videoTexture.video.paused ? "paused" : "playing");
-      } else {
-        console.log(evtData.pickInfo.pickedMesh);
-      }
-    }, PointerEventTypes.POINTERPICK);
-
-    // // depending on the tracker, [the paper]
-    const id = "m4"; // first marker that moved/ on the screen
-    const track = this.data.recordingData.animation.tracks[id];
-    const length = track.times.length;
-    const fps = length / this.data.recordingData.animation.duration;
-    const keyframes = [];
-
-    for (let i = 0; i < length; i++) {
-      const mat = Matrix.FromArray(track.matrices[i].elements);
-      const pos = mat.getTranslation();
-      //convert position from right to left handed coordinates
-
-      pos.z = -pos.z;
-      const s = 6 / pos.z;
-
-      keyframes.push({
-        frame: track.times[i] * fps,
-        value: pos.scale(s).multiplyByFloats(3, 3, 1),
-      });
-    }
-
-    //create animation
-    const animation = new Animation(
-      "animation",
-      "position",
-      fps,
-      Animation.ANIMATIONTYPE_VECTOR3,
-      Animation.ANIMATIONLOOPMODE_CYCLE
-    );
-
-    animation.setKeys(keyframes);
-    // sphere.animations = [animation];
-    // scene.beginAnimation(sphere, 0, length-1, true);
-
-    //create animation grp
-    const animationGroup = new AnimationGroup("animation group", scene);
-
+    ////create text in space
+    // const helloPlane = MeshBuilder.CreatePlane("Hello plane", { size: 15 });
+    // helloPlane.position.y = 0;
+    // helloPlane.position.z = 5;
+    // //the 3d quad for words
+    // const helloTexture = AdvancedDynamicTexture.CreateForMesh(helloPlane);
+    // const helloText = new TextBlock("hello");
+    // helloText.text = "Hello XR";
+    // helloText.color = "purple";
+    // helloText.fontSize = 50;
+    // helloTexture.addControl(helloText); //what to use for the texture
 
       //use observable for detecting intersections
       const onIntersectObservable = new Observable<boolean>();
@@ -574,7 +631,6 @@ export class App {
       }
     });
 
-
     // 3. create observer
     const observer = new Observer<number>((distance) => {
       helloSphere.label.textBlock.text = "d: " + distance.toFixed(2);
@@ -611,31 +667,6 @@ export class App {
     }
     scene.onBeforeRenderObservable.runCoroutineAsync(coroutine());
 
-    //add animation to the grp
-    //animationGroup.addTargetedAnimation(animation,sphere);
-
-    const info = this.data.recordingData.modelInfo[id];
-
-    const label = info.label;
-    const name = info.name;
-    const url = this.data.models[name]; // get prob of model
-    //import from file, then attack to the tracker
-    SceneLoader.AppendAsync(url, undefined, scene, undefined, ".glb").then(
-      (result) => {
-        //gltf, added root
-        const root = result.getMeshById("__root__");
-        root.id = id + ": " + label;
-        root.name = label;
-        helloPlane.position.setAll(0);
-        helloPlane.position.y = -0.5;
-        helloPlane.position.z = -0.1;
-        helloPlane.setParent(root);
-        helloText.text = "hello"; // change this to label
-        // helloText.text = label; // change this to label
-        animationGroup.addTargetedAnimation(animation, root);
-        animationGroup.reset(); //reset animation
-      }
-    );
 
     // XR session
     // enable ar setting from babylon js
@@ -649,15 +680,16 @@ export class App {
     //for debugging
     (window as any).xr = xr;
 
-
     const featureManager = xr.baseExperience.featuresManager;
     console.log(WebXRFeaturesManager.GetAvailableFeatures());
     
     // locomotion
     const movement = Movementmode.Teleportation; 
-    this.initLocomotion(movement, xr, featureManager, ground,scene);
+    this.initLocomotion(movement, xr, featureManager, groundInstance._mesh ,scene);
 
 
+
+    
     // hand tracking 
     try{
       featureManager.enableFeature(WebXRFeatureName.HAND_TRACKING, "latest",{
@@ -718,7 +750,6 @@ export class App {
 
     // enabled features 
     console.log(featureManager.getEnabledFeatures());
-
 
     return scene;
   }
