@@ -111,6 +111,11 @@ export class App {
     console.log("app object constructor called");
   }
 
+  /**
+   * function to create sky dome
+   * 
+   * @param scene scene to create sky dome in
+   */
   createVideoSkyDome(scene: Scene) {
     const dome = new VideoDome(
       "videoDome",
@@ -123,6 +128,11 @@ export class App {
     );
   }
 
+  /**
+   * Function to create text
+   * 
+   * @param scene scene to create text 
+   */
   createText(scene: Scene) {
     const helloPlane = new TextPlane(
       "hello plane",
@@ -145,12 +155,24 @@ export class App {
     });
   }
 
+  /**
+   * Helper function to change the color of the mesh
+   * 
+   * @param mesh mesh to apply the color
+   * @param color color to apply the mesh
+   */
   applyColor = (mesh: AbstractMesh, color: Color3) => {
     const material = new StandardMaterial("modelMaterial", mesh.getScene());
     material.diffuseColor = color;
     mesh.material = material;
   };
 
+  /**
+   * function to create hard coded animation keyframes with the mesh. the animation goes left and right
+   * 
+   * @param mesh mesh to create the animation
+   * @returns the animation object
+   */
   createShakeAnimation = (mesh: AbstractMesh) => {
     const animation = new Animation(
       "shake",
@@ -178,7 +200,16 @@ export class App {
     return animation;
   };
 
+  rPressed = false;
+  
+  /**
+   *  function to detect key inputs
+   * 
+   * @param scene Scene to include this shortcut in
+   */
   addInspectorKeyboardShortcut(scene: Scene) {
+    let gizmoManager: GizmoManager | null = null;
+  
     window.addEventListener("keydown", (e) => {
       if (e.ctrlKey && e.key == "i") {
         if (scene.debugLayer.isVisible()) {
@@ -187,13 +218,39 @@ export class App {
           scene.debugLayer.show();
         }
       }
-
+  
       if (e.key === "r" || e.key === "R") {
-        // resetscene();
+        if (!gizmoManager) {
+          gizmoManager = new GizmoManager(scene);
+          gizmoManager.positionGizmoEnabled = true;
+          gizmoManager.rotationGizmoEnabled = true;
+          gizmoManager.scaleGizmoEnabled = true;
+          gizmoManager.boundingBoxGizmoEnabled = true;
+          console.log("Gizmos enabled");
+        } else {
+          const isEnabled =
+            gizmoManager.positionGizmoEnabled &&
+            gizmoManager.rotationGizmoEnabled &&
+            gizmoManager.scaleGizmoEnabled &&
+            gizmoManager.boundingBoxGizmoEnabled;
+  
+          gizmoManager.positionGizmoEnabled = !isEnabled;
+          gizmoManager.rotationGizmoEnabled = !isEnabled;
+          gizmoManager.scaleGizmoEnabled = !isEnabled;
+          gizmoManager.boundingBoxGizmoEnabled = !isEnabled;
+  
+          console.log(`Gizmos ${isEnabled ? "disabled" : "enabled"}`);
+        }
       }
     });
   }
 
+  /**
+   * Function to create animation based on the the tracker data from the video
+   * 
+   * @param scene the scene the animation data
+   * @param model mesh to create the animation of
+   */
   createAnimation(scene: Scene, model: AbstractMesh) {
     const animation = new Animation(
       "rotationAnima",
@@ -213,6 +270,11 @@ export class App {
     scene.beginAnimation(model, 0, 30, true);
   }
 
+  /**
+   * function to create default camera in the scene
+   * 
+   * @param scene the scene to create the camera in 
+   */
   createCamera(scene: Scene) {
     const camera = new ArcRotateCamera(
       "arcCamera",
@@ -230,8 +292,12 @@ export class App {
     camera.attachControl(this.canvas, true);
   }
 
-
-
+  /**
+   * function to create AR video plane
+   * 
+   * @param scene the scene to create the Video Plane
+   * @param sphere the mesh which the videoplane
+   */
   createVideoPlane(scene: Scene, sphere: AbstractMesh) {
     const videoHeight = 5;
     const videoWidth = videoHeight * this.data.recordingData.aspectRatio;
@@ -362,14 +428,11 @@ export class App {
     );
   }
 
-  attachDragBehavior(mesh, onDragEnd) {
-    const dragBehavior = new PointerDragBehavior({
-      dragPlaneNormal: new Vector3(0, 1, 0),
-    });
-    mesh.addBehavior(dragBehavior);
-    dragBehavior.onDragEndObservable.add(onDragEnd);
-  }
-
+  /**
+   *  The main function to create the scene
+   * 
+   * @returns the scene created
+   */
   async createScene() {
     console.log(this.data);
 
@@ -737,13 +800,7 @@ export class App {
       }
     );
 
-    // // more behaviors
-    // // default gizmo
-    // const gizmoManager = new GizmoManager(scene);
-    // gizmoManager.positionGizmoEnabled = true;
-    // gizmoManager.rotationGizmoEnabled = true;
-    // gizmoManager.scaleGizmoEnabled = true;
-    // gizmoManager.boundingBoxGizmoEnabled = true;
+
 
     //   //use observable for detecting intersections
     //   const onIntersectObservable = new Observable<boolean>();
@@ -929,6 +986,15 @@ export class App {
     return scene;
   }
 
+  /**
+   * Initializes the locomotion system based on the specified movement mode.
+   * 
+   * @param movement The movement mode to use, which can be "Teleportation", "Controller", or "Walk".
+   * @param xr The WebXR default experience to use.
+   * @param featureManager The WebXR features manager to use.
+   * @param ground The ground mesh to use.
+   * @param scene The scene to use.
+   */
   initLocomotion(
     movement: Movementmode,
     xr: WebXRDefaultExperience,

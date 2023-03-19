@@ -7,7 +7,12 @@ IPA assignment for CSD3120
 ##About the project
 This innovative project harnesses the power of Babylon.js, a cutting-edge 3D graphics engine, and Webpack, a powerful build tool, to create an immersive virtual reality (VR) experience designed to transport student into a classroom environment. This VR experience has been optimized for the Google Cardboard platform, ensuring maximum compatibility and accessibility. 
 The goal of this experience is to provide a unique and engaging way for users to learn the fundamental principles of chemistry, specifically the concept of balancing chemical equations.
-Students are able to test it out the combination of molecues by draging hydrogen molecules to the oxygen molecule to form water
+Students are able to test it out the combination of molecules by dragging hydrogen molecule to the oxygen molecule to form water
+
+
+Certain items are draggable however,
+Pressing `R` will toggle gizmo which would allow players to directly modify the scene
+
 
 ## Architecture
 Root
