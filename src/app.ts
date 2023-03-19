@@ -3,7 +3,6 @@
  * @author Wong Wei Hao
  * @package
  */
-
 import {
   Engine,
   MeshBuilder,
@@ -50,6 +49,8 @@ import {
   Nullable,
   WebXRExperienceHelper,
   WebXRDefaultExperience,
+  WebXRControllerPointerSelection,
+  Quaternion,
 } from "babylonjs";
 import { AdvancedDynamicTexture, Control, StackPanel, TextBlock } from "babylonjs-gui";
 import "babylonjs-loaders";
@@ -57,7 +58,7 @@ import { AuthoringData } from "xrauthor-loader";
 import { HelloSphere, TextPlane, Ground } from "./components/meshes";
 import { createLights } from "./components/env/lighting";
 import { loadModels  } from "./components/env/class";
-import { createBoxWithNumber  } from "./components/meshes/hello-mesh";
+import { createBoxWithNumber, createAnimation  } from "./components/meshes/hello-mesh";
 
 /**
  * App class for creating and managing the XR scene.
@@ -184,9 +185,6 @@ export class App {
     //   }
     // );
 
-  
-
-
   }
 
 
@@ -254,6 +252,9 @@ export class App {
     model.animations.push(animation);
     scene.beginAnimation(model, 0, 30, true);
   }
+
+
+
   createCamera(scene: Scene) {
     const camera = new ArcRotateCamera(
       "arcCamera",
@@ -298,8 +299,8 @@ export class App {
       },
       scene
     );
-    videoPlane.position.set(0, -3, 8);
-    videoPlane.rotation.set(Math.PI / 2, 0, 0);
+    videoPlane.position.set(0, 5, 10);
+    // videoPlane.rotation.set(Math.PI / 2, 0, 0);
     videoPlane.scaling._x = 1.0;
     videoPlane.scaling._y = 1.0;
     const videoMaterial = new StandardMaterial("video material", scene);
@@ -339,6 +340,7 @@ export class App {
       value: Vector3;
     }
 
+
     const keyFrames: KeyFrame[] = [];
 
     for (let i = 0; i < length; i++) {
@@ -347,12 +349,18 @@ export class App {
       // convert position from right handed to left handed coords
       pos.z = -pos.z;
       const s = 10 / pos.z;
-      keyFrames.push({
+      const rotationQuaternion = Quaternion.RotationYawPitchRoll(videoPlane.rotation.y, videoPlane.rotation.x, videoPlane.rotation.z);
+      const posScaled = pos.scale(s).multiplyByFloats(1, 1, 1);
+      const position = videoPlane.position.clone().add(posScaled).rotateByQuaternionToRef(rotationQuaternion, new Vector3(0, 0, 0));
+  
+      const keyFrame = {
         frame: track.times[i] * fps,
-        value: pos.scale(s).multiplyByFloats(1.2, 3.5, 0.7),
-      });
+        value: position,
+        // value: videoPlane.position.clone().add(pos.scale(s).multiplyByFloats(1.2, 3.5, 0.7)),
+      };
+      keyFrames.push(keyFrame);
     }
-
+  
 
     const h20model = SceneLoader.ImportMeshAsync(
       "",
@@ -360,6 +368,7 @@ export class App {
       "h2o.glb",
       scene
     )
+
     const animation = new Animation(
       "animation",
       "position",
@@ -384,17 +393,30 @@ export class App {
         if (root) {
           root.id = id + ": " + label;
           root.name = label; // label in this case in H2
-          // showing the label on the text
-          // helloplane.position.setAll(0);
-          // helloPlane.position.y = -0.5;
-          // helloPlane.position.z = -0.1;
-          // helloPlane.setParent(root);
-          // helloText.test = label;
+          
+          // create the animation for the root mesh of the model
+          const animation = new Animation(
+            "animation",
+            "position",
+            fps,
+            Animation.ANIMATIONTYPE_VECTOR3,
+            Animation.ANIMATIONLOOPMODE_CYCLE
+          );
+          animation.setKeys(keyFrames);
+          root.animations.push(animation);
+          scene.beginAnimation(root, 0, length - 1, true);
+
           animationGroup.addTargetedAnimation(animation, root);
           animationGroup.reset();
         }
       }
     );
+
+
+
+
+
+
   }
 
   attachDragBehavior(mesh, onDragEnd) {
@@ -416,28 +438,35 @@ export class App {
     loadModels(scene); // "static" class models
     this.addSounds(scene);
     // this.createParticles(scene);
-    this.createText(scene); // create text
+    // this.createText(scene); // create text
+
+    const groundInstance = new Ground(scene); // create ground
+
+     this.createSkyBox(scene);
+    // this.createVideoSkyDome(scene);
+    this.addInspectorKeyboardShortcut(scene); // ctrl + i to use
 
 
-    const boxm10 = createBoxWithNumber(scene,new Vector3(1,1,1), new Vector3(3.14,0,0));
+
 
 
     const combineThreshold = 1.5; // Distance threshold for combining the models
 
     const O2Model = await SceneLoader.ImportMeshAsync("", "assets/models/", "O2.glb", scene);
     const o2Root = O2Model.meshes[0];
-    o2Root.position = new Vector3(0, 1, 1);
+    o2Root.position = new Vector3(0, 1, 4);
     
     const HModel = await SceneLoader.ImportMeshAsync("", "assets/models/", "H2.glb", scene);
     const hRoot = HModel.meshes[0];
-    hRoot.position = new Vector3(2, 1, 1);
-    
-    const H2OModel = await SceneLoader.ImportMeshAsync("", "assets/models/", "H2o.glb", scene);
-    const h2oRoot = H2OModel.meshes[0];
-    h2oRoot.position = new Vector3(1.5, 1, 1);
-    h2oRoot.setEnabled(false); // Hide H2OModel initially
+    hRoot.position = new Vector3(2, 1, 4);
     
 
+    const H2OModel = await SceneLoader.ImportMeshAsync("", "assets/models/", "H2o.glb", scene);
+    const h2oRoot = H2OModel.meshes[0];
+    h2oRoot.position = new Vector3(1.5, 1, 4);
+    h2oRoot.setEnabled(false); // Hide H2OModel initially
+    
+    this.createAnimation(scene,h2oRoot);
 
     const createDragBehavior = () => {
       const dragBehavior = new PointerDragBehavior({
@@ -473,6 +502,8 @@ export class App {
         if (distance <= combineThreshold) {
           o2Root.setEnabled(false);
           hRoot.setEnabled(false);
+
+          h2oRoot.position = o2Root.position;
           h2oRoot.setEnabled(true);
         }
       });
@@ -483,79 +514,235 @@ export class App {
     o2Root.addBehavior(createDragBehavior());
     hRoot.addBehavior(createDragBehavior());
 
+    // const box = MeshBuilder.CreateBox("box", { size: 1 }, scene);
+    // const texture = AdvancedDynamicTexture.CreateForMesh(box);
+    // const boxTexture = AdvancedDynamicTexture.CreateForMesh(box);
+    // const boxText = new TextBlock();
+    // boxText.text = "2";
+    // boxText.color = "white";
+    // boxText.fontSize = 100;
+    // boxTexture.addControl(boxText);
+
+    // const material = new StandardMaterial("material", scene);
+    // material.diffuseTexture = texture;
+    // material.diffuseColor = new Color3(1, 0, 0); // set the material color to red
+    // material.alpha = 1; // set the material alpha to 1
+
+    // box.material = material; // assign the material to the mesh
+    // box.position = new Vector3(0, 0, 5); // position the mesh in front of the camera
+
+    // const sphere = MeshBuilder.CreateBox("sphere", { size: 1 }, scene);
+    // sphere.position.x = 0;
+    // sphere.position.y = 1;
+    // sphere.position.z = 5;
 
 
-    const box = MeshBuilder.CreateBox("box", { size: 1 }, scene);
-    const texture = AdvancedDynamicTexture.CreateForMesh(box);
-    
 
-    const boxTexture = AdvancedDynamicTexture.CreateForMesh(box);
-    const boxText = new TextBlock();
-    boxText.text = "2";
-    boxText.color = "white";
-    boxText.fontSize = 100;
-    boxTexture.addControl(boxText);
+    // const helloSphere = new HelloSphere("hello sphere", { diameter: 1 }, scene);
+    // helloSphere.position.set(0, 1, 5);
+    // helloSphere.sayHello("this is a test.");
+    // // interactions
+    // // use behaviors, child of observable
+    // const pointerDragBehavior = new PointerDragBehavior({
+    //   dragPlaneNormal: Vector3.Up(), //1,1,0
+    // });
 
-    const material = new StandardMaterial("material", scene);
-    material.diffuseTexture = texture;
-    material.diffuseColor = new Color3(1, 0, 0); // set the material color to red
-    material.alpha = 1; // set the material alpha to 1
-
-    box.material = material; // assign the material to the mesh
-    box.position = new Vector3(0, 0, 5); // position the mesh in front of the camera
-
-    const sphere = MeshBuilder.CreateBox("sphere", { size: 1 }, scene);
-    sphere.position.x = 0;
-    sphere.position.y = 1;
-    sphere.position.z = 5;
-
-
-    // const h20model = SceneLoader.ImportMeshAsync(
-    //   "",
-    //   "assets/models/scene/",
-    //   "h2o.glb",
-    //   scene
-    // )
-
-    const groundInstance = new Ground(scene); // create ground
-
-    //  this.createSkyBox(scene);
-    this.createVideoSkyDome(scene);
-    this.addInspectorKeyboardShortcut(scene); // ctrl + i to use
-
-    const helloSphere = new HelloSphere("hello sphere", { diameter: 1 }, scene);
-    helloSphere.position.set(0, 1, 5);
-    helloSphere.sayHello("this is a test.");
-
-    // interactions
-    // use behaviors, child of observable
-    const pointerDragBehavior = new PointerDragBehavior({
-      dragPlaneNormal: Vector3.Up(), //1,1,0
-    });
-
-    //create observable
-    pointerDragBehavior.onDragStartObservable.add((evtData) => {
-      console.log("drag start: pointer id -" + evtData.pointerId);
-      console.log(evtData);
-    });
-
-    const helloSphereDragBehavior = new PointerDragBehavior({
-      dragPlaneNormal: Vector3.Backward(), //1,1,0
-    });
-
-    helloSphere.addBehavior(helloSphereDragBehavior);
-
-    sphere.addBehavior(pointerDragBehavior); // that behavoir to the sphere
-
-    // multiple pointer scale
-    const multiPointerScaleBehavior = new MultiPointerScaleBehavior();
-    helloSphere.addBehavior(multiPointerScaleBehavior);
-    
+    // //create observable
+    // pointerDragBehavior.onDragStartObservable.add((evtData) => {
+    //   console.log("drag start: pointer id -" + evtData.pointerId);
+    //   console.log(evtData);
+    // });
+    // const helloSphereDragBehavior = new PointerDragBehavior({
+    //   dragPlaneNormal: Vector3.Backward(), //1,1,0
+    // });
+    // // helloSphere.addBehavior(helloSphereDragBehavior);
+    // // sphere.addBehavior(pointerDragBehavior); // that behavoir to the sphere
+    // // multiple pointer scale
+    // const multiPointerScaleBehavior = new MultiPointerScaleBehavior();
+    // helloSphere.addBehavior(multiPointerScaleBehavior);
     // create the video plane
-    this.createVideoPlane(scene, boxm10);
+    // this.createVideoPlane(scene, boxm10);
 
 
-    
+    const videoHeight = 5;
+    const videoWidth = videoHeight * this.data.recordingData.aspectRatio;
+    const videoPlane = MeshBuilder.CreatePlane(
+      "video plane",
+      {
+        height: videoHeight,
+        width: videoWidth,
+      },
+      scene
+    );
+    videoPlane.position.set(0, 0, 6);
+    // videoPlane.rotation.set(Math.PI / 2, 0, 0);
+    const videoMaterial = new StandardMaterial("video material", scene);
+    const videoTexture = new VideoTexture(
+      "video texture",
+      this.data.video,
+      scene
+    );
+    videoTexture.onUserActionRequestedObservable.add(() => {});
+    videoTexture.video.autoplay = true;
+    videoMaterial.diffuseTexture = videoTexture;
+    videoMaterial.roughness = 1;
+    videoMaterial.emissiveColor = Color3.White();
+    videoPlane.material = videoMaterial;
+
+    scene.onPointerObservable.add((evtData) => {
+      console.log("picked");
+      if (evtData.pickInfo?.pickedMesh === videoPlane) {
+        if (videoTexture.video.paused) {
+          videoTexture.video.play();
+          animationGroup.play(true);
+        } else {
+          videoTexture.video.pause();
+          animationGroup.pause();
+        }
+        console.log(videoTexture.video.paused ? "paused" : "playing");
+      }
+    }, PointerEventTypes.POINTERPICK);
+
+    const id = "m10";
+    const track = this.data.recordingData.animation.tracks[id];
+    const length = track.times.length;
+    const fps = length / this.data.recordingData.animation.duration;
+    // interface of the keyframes
+    interface KeyFrame {
+      frame: number;
+      value: Vector3;
+    }
+
+    const keyFrames: KeyFrame[] = [];
+
+    //creation of animation here
+    for (let i = 0; i < length; i++) {
+      const mat = Matrix.FromArray(track.matrices[i].elements);
+      const pos = mat.getTranslation();
+      // convert position from right handed to left handed coords
+      pos.z = -pos.z;
+      const s = 6 / pos.z;
+  
+      const keyFrame = {
+        frame: track.times[i] * fps,
+        value: pos.scale(s).multiplyByFloats(3, 3, 1),
+      };
+      keyFrames.push(keyFrame);
+    }
+  
+    const animation = new Animation(
+      "animation",
+      "position",
+      fps,
+      Animation.ANIMATIONTYPE_VECTOR3,
+      Animation.ANIMATIONLOOPMODE_CYCLE
+    );
+    animation.setKeys(keyFrames);
+
+    const boxm10 = createBoxWithNumber(scene,new Vector3(1,1,1), new Vector3(0,Math.PI/2,Math.PI/2));
+    boxm10.animations = [animation]; //adds the animation
+    boxm10.scaling.setAll(0.7);
+    scene.beginAnimation(boxm10,0,length-1,true);
+
+
+    const boxm2 = createBoxWithNumber(scene,new Vector3(1,1,1), new Vector3(0,Math.PI/2,Math.PI/2));
+    const m2ani = createAnimation(scene,boxm2,this.data,"m2");
+    boxm2.scaling.setAll(0.7);
+    boxm2.animations = [m2ani];
+    scene.beginAnimation(boxm2,0,length-1,true);
+
+    //plus
+    const boxm5 = createBoxWithNumber(scene,new Vector3(1,1,1), new Vector3(0,Math.PI/2,Math.PI/2),"+", Color3.Teal() );
+    const m5ani = createAnimation(scene,boxm2,this.data,"m5");
+    boxm5.scaling.setAll(0.7);
+    boxm5.animations = [m5ani]; //adds the animation
+    scene.beginAnimation(boxm5,0,length-1,true);
+
+    //equals, mark 8
+    const boxm8 = createBoxWithNumber(scene,new Vector3(1,1,1), new Vector3(0,Math.PI/2,Math.PI/2),"=", Color3.Teal() );
+    const m8ani = createAnimation(scene,boxm2,this.data,"m8");
+    boxm8.scaling.setAll(0.7);
+    boxm8.animations = [m8ani]; //adds the animation
+    scene.beginAnimation(boxm8,0,length-1,true);
+
+
+
+    //label m7
+    const vidH2O = await SceneLoader.ImportMeshAsync("", "assets/models/", "h2o.glb", scene);
+    const m7h2oani = createAnimation(scene,vidH2O.meshes[0] ,this.data,"m7");
+    vidH2O.meshes[0].scaling.setAll(0.6);
+    vidH2O.meshes[0].animations = [m7h2oani]
+    scene.beginAnimation(vidH2O.meshes[0], 0, length - 1, true);
+
+
+    //label m1
+    const vidcoffee = await SceneLoader.ImportMeshAsync("", "assets/models/", "coffee.glb", scene);
+    const m1cofani = createAnimation(scene,vidcoffee.meshes[0] ,this.data,"m1");
+    vidcoffee.meshes[0].scaling.setAll(1.5);
+    vidcoffee.meshes[0].animations = [m1cofani]
+    scene.beginAnimation(vidcoffee.meshes[0], 0, length - 1, true);
+
+
+    //label m4
+    const vidH2 = await SceneLoader.ImportMeshAsync("", "assets/models/", "H2.glb", scene);
+    const m4h2ani = createAnimation(scene,vidH2.meshes[0] ,this.data,"m4");
+    vidH2.meshes[0].scaling.setAll(0.6);
+    vidH2.meshes[0].animations = [m4h2ani]
+    scene.beginAnimation(vidH2.meshes[0], 0, length - 1, true);
+
+    //label m11
+    const vidO2 = await SceneLoader.ImportMeshAsync("", "assets/models/", "O2.glb", scene);
+    vidO2.meshes[0].scaling.setAll(0.6);
+    const m11O2ani = createAnimation(scene,vidO2.meshes[0] ,this.data,"m11");
+    vidO2.meshes[0].animations = [m11O2ani]
+    scene.beginAnimation(vidO2.meshes[0], 0, length - 1, true);
+
+
+    const animationGroup = new AnimationGroup("animation group", scene);
+    animationGroup.addTargetedAnimation(animation,boxm10);
+    animationGroup.addTargetedAnimation(animation,boxm2);
+    animationGroup.addTargetedAnimation(animation,vidH2);
+    animationGroup.addTargetedAnimation(animation,vidO2);
+
+    const info = this.data.recordingData.modelInfo[id];
+    const label = info.label;
+    const name = info.name;
+    const url = this.data.models[name];
+    SceneLoader.AppendAsync(url, undefined, scene, undefined, ".glb").then(
+      (result) => {
+        const root = result.getMeshById("__root__");
+        if (root) {
+          root.id = id + ": " + label;
+          root.name = label; // label in this case in H2
+          
+          // create the animation for the root mesh of the model
+          const animation = new Animation(
+            "animation",
+            "position",
+            fps,
+            Animation.ANIMATIONTYPE_VECTOR3,
+            Animation.ANIMATIONLOOPMODE_CYCLE
+          );
+          animation.setKeys(keyFrames);
+          root.animations.push(animation);
+          scene.beginAnimation(root, 0, length - 1, true);
+
+          animationGroup.addTargetedAnimation(animation, root);
+          animationGroup.reset();
+        }
+      }
+    );
+
+
+
+
+
+
+
+
+
+
+
     // // more behaviors 
     // // default gizmo 
     // const gizmoManager = new GizmoManager(scene);
@@ -564,85 +751,73 @@ export class App {
     // gizmoManager.scaleGizmoEnabled = true;
     // gizmoManager.boundingBoxGizmoEnabled = true;
 
-    ////create text in space
-    // const helloPlane = MeshBuilder.CreatePlane("Hello plane", { size: 15 });
-    // helloPlane.position.y = 0;
-    // helloPlane.position.z = 5;
-    // //the 3d quad for words
-    // const helloTexture = AdvancedDynamicTexture.CreateForMesh(helloPlane);
-    // const helloText = new TextBlock("hello");
-    // helloText.text = "Hello XR";
-    // helloText.color = "purple";
-    // helloText.fontSize = 50;
-    // helloTexture.addControl(helloText); //what to use for the texture
+    //   //use observable for detecting intersections
+    //   const onIntersectObservable = new Observable<boolean>();
+    //   scene.registerBeforeRender(function () {
+    //     const isIntersecting = sphere.intersectsMesh(helloSphere, true, true); // register the observer of the sphere
+    //     onIntersectObservable.notifyObservers(isIntersecting); //boardcast here
+    //   });
 
-      //use observable for detecting intersections
-      const onIntersectObservable = new Observable<boolean>();
-      scene.registerBeforeRender(function () {
-        const isIntersecting = sphere.intersectsMesh(helloSphere, true, true); // register the observer of the sphere
-        onIntersectObservable.notifyObservers(isIntersecting); //boardcast here
-      });
+    //   //intersecting observable
+    //   helloSphere.onIntersectObservable = onIntersectObservable;
+    //   const redColor = Color3.Red();
+    //   const whiteColor = Color3.White();
+    //   helloSphere.onIntersectObservable.add((isintersecting) => {
+    //     const material = helloSphere.mesh.material as StandardMaterial;
+    //     const isRed = material.diffuseColor === redColor;
+    //     //if intersecting
+    //     if (isintersecting && !isRed) 
+    //     {
+    //       material.diffuseColor = redColor;
+    //     } 
+    //     else if (!isintersecting && isRed) 
+    //     {
+    //       material.diffuseColor = whiteColor;
+    //     }
+    //   });
 
-      //intersecting observable
-      helloSphere.onIntersectObservable = onIntersectObservable;
-      const redColor = Color3.Red();
-      const whiteColor = Color3.White();
-      helloSphere.onIntersectObservable.add((isintersecting) => {
-        const material = helloSphere.mesh.material as StandardMaterial;
-        const isRed = material.diffuseColor === redColor;
-        //if intersecting
-        if (isintersecting && !isRed) 
-        {
-          material.diffuseColor = redColor;
-        } 
-        else if (!isintersecting && isRed) 
-        {
-          material.diffuseColor = whiteColor;
-        }
-      });
-
-    // 2. create an oversable for checking distance
-    const onDistanceChangeObservable = new Observable<number>();
-    let previousState: number = 0; // initialize with a number value
+    // // 2. create an oversable for checking distance
+    // const onDistanceChangeObservable = new Observable<number>();
+    // let previousState: number = 0; // initialize with a number value
     
-    scene.onBeforeRenderObservable.add(() => {
-      const currentState = Vector3.Distance(
-        sphere.position,
-        helloSphere.position
-      );
-      //check state has been change
-      if (previousState !== currentState) {
-        console.log("distance updated!");
-        previousState = currentState;
-        onDistanceChangeObservable.notifyObservers(currentState); // notify
-      }
-    });
-    helloSphere.onDistanceChangeObservable = onDistanceChangeObservable;
-    const blueColor = Color3.Blue();
-    helloSphere.onDistanceChangeObservable.add((distance) => {
-      const isCloseEnough = distance <= 1.2;
-      const material = helloSphere.mesh.material as StandardMaterial;
-      const isBlue = material.diffuseColor === blueColor;
-      const isRed = material.diffuseColor === redColor;
-      if (isCloseEnough && !isBlue && !isRed) {
-        material.diffuseColor = blueColor;
-      } else if (!isCloseEnough && isBlue) {
-        material.diffuseColor = whiteColor;
-      }
-    });
+    // scene.onBeforeRenderObservable.add(() => {
+    //   const currentState = Vector3.Distance(
+    //     sphere.position,
+    //     helloSphere.position
+    //   );
+    //   //check state has been change
+    //   if (previousState !== currentState) {
+    //     console.log("distance updated!");
+    //     previousState = currentState;
+    //     onDistanceChangeObservable.notifyObservers(currentState); // notify
+    //   }
+    // });
+    // helloSphere.onDistanceChangeObservable = onDistanceChangeObservable;
+    // const blueColor = Color3.Blue();
+    // helloSphere.onDistanceChangeObservable.add((distance) => {
+    //   const isCloseEnough = distance <= 1.2;
+    //   const material = helloSphere.mesh.material as StandardMaterial;
+    //   const isBlue = material.diffuseColor === blueColor;
+    //   const isRed = material.diffuseColor === redColor;
+    //   if (isCloseEnough && !isBlue && !isRed) {
+    //     material.diffuseColor = blueColor;
+    //   } else if (!isCloseEnough && isBlue) {
+    //     material.diffuseColor = whiteColor;
+    //   }
+    // });
 
-    // 3. create observer
-    const observer = new Observer<number>((distance) => {
-      helloSphere.label.textBlock.text = "d: " + distance.toFixed(2);
-    }, -1);
+    // // 3. create observer
+    // const observer = new Observer<number>((distance) => {
+    //   helloSphere.label.textBlock.text = "d: " + distance.toFixed(2);
+    // }, -1);
 
-    // 4. add observer using coroutine
-    const addObserverCoruotine = function* () {
-      yield; //return 
-      console.log("frame " + scene.getFrameId() + ": add observer");
-      onDistanceChangeObservable.observers.push(observer);
-    };
-    scene.onBeforeRenderObservable.runCoroutineAsync(addObserverCoruotine());
+    // // 4. add observer using coroutine
+    // const addObserverCoruotine = function* () {
+    //   yield; //return 
+    //   console.log("frame " + scene.getFrameId() + ": add observer");
+    //   onDistanceChangeObservable.observers.push(observer);
+    // };
+    // scene.onBeforeRenderObservable.runCoroutineAsync(addObserverCoruotine());
 
     const coroutine = function* (){
       (async function (){
@@ -687,9 +862,6 @@ export class App {
     const movement = Movementmode.Teleportation; 
     this.initLocomotion(movement, xr, featureManager, groundInstance._mesh ,scene);
 
-
-
-    
     // hand tracking 
     try{
       featureManager.enableFeature(WebXRFeatureName.HAND_TRACKING, "latest",{

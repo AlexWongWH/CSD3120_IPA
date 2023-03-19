@@ -20,7 +20,7 @@ import {
   
       const ground = MeshBuilder.CreateGround(
         "ground",
-        { width: 100, height: 100 },
+        { width: 150, height: 150 },
         scene
       );
       ground.material = groundMaterial;

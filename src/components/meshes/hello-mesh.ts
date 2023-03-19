@@ -1,17 +1,58 @@
+/**
+ * @fileoverview A application typescript file that holds function which create primative model used for the VR class
+ * @author Wong Wei Hao
+ * @package
+ */
+
 // using interface to extend babylon js 
-import { AbstractMesh, ActionManager, Color3, Observable, ExecuteCodeAction, InterpolateValueAction, Mesh, MeshBuilder, PredicateCondition, Scene, SetValueAction, StandardMaterial, Vector3 } from "babylonjs";
+import { AbstractMesh,Animation, ActionManager, Color3, Observable, ExecuteCodeAction, InterpolateValueAction, Mesh, MeshBuilder, PredicateCondition, Scene, SetValueAction, StandardMaterial, Vector3, Matrix } from "babylonjs";
 import { TextPlane } from "./text-plane";
 import { DynamicTexture, Quaternion, Vector4 } from "babylonjs";
+import { AuthoringData } from "xrauthor-loader";
 
-import {
-    SceneLoader,
-    PointerDragBehavior,
-    WebXRDefaultExperience,
-    WebXRControllerPointerSelection,
-  } from "babylonjs";
+
+
+export function createAnimation(scene: Scene, mesh:AbstractMesh, app : AuthoringData, id:string)
+{
+    const track = app.recordingData.animation.tracks[id];
+    const length = track.times.length;
+    const fps = length / app.recordingData.animation.duration;
+    
+    interface KeyFrame {
+        frame: number;
+        value: Vector3;
+    }
+    const keyFrames: KeyFrame[] = [];
+    for (let i = 0; i < length; i++) {
+        const mat = Matrix.FromArray(track.matrices[i].elements);
+        const pos = mat.getTranslation();
+        // convert position from right handed to left handed coords
+        pos.z = -pos.z;
+        const s = 6 / pos.z;
+    
+        const keyFrame = {
+          frame: track.times[i] * fps,
+          value: pos.scale(s).multiplyByFloats(3, 3, 1),
+        };
+        keyFrames.push(keyFrame);
+      }
+      const animation = new Animation(
+        "animation",
+        "position",
+        fps,
+        Animation.ANIMATIONTYPE_VECTOR3,
+        Animation.ANIMATIONLOOPMODE_CYCLE
+      );
+      animation.setKeys(keyFrames);
+    return animation;
+}
+
+
+
 
 
 export function createBoxWithNumber(scene: Scene, position: Vector3, rotation : Vector3,
+    text : string = "2",
     boxColor: Color3 = Color3.White(),
     textColor: string = "black")
 : AbstractMesh {
@@ -40,7 +81,7 @@ ctx.font = "60px Arial";
 ctx.fillStyle = textColor;
 ctx.textAlign = "center";
 ctx.textBaseline = "middle";
-ctx.fillText("2", textureSize / 2, textureSize / 2);
+ctx.fillText(text, textureSize / 2, textureSize / 2);
 
 // Update the texture
 texture.update();
