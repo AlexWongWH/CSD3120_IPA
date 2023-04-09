@@ -26,3 +26,6 @@ both desktop and an additional form of locomotion interaction exist and works we
 Good job in improving the README.
 The interactions in VR work but some were designed based on the same desktop-based modalities. The cardboard-based controls should be much simpler.
 The HMD rotation was also rather buggy.
+
+## Integration BONUS
+cannot load due to errors
